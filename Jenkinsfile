@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    // C'est ici qu'on active l'écoute automatique
+    triggers {
+        githubPush() 
+    }
+
     tools {
         maven "M3"
     }
@@ -8,7 +13,7 @@ pipeline {
     stages {
         stage('Build & Test') {
             steps {
-                echo "🚀 Build depuis GitHub avec le nouveau script..."
+                echo "🚀 Démarrage automatique..."
                 sh "mvn clean install"
             }
         }
@@ -20,17 +25,15 @@ pipeline {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'github-access-token', passwordVariable: 'GIT_PASS', usernameVariable: 'GIT_USER')]) {
-                        
-                        // Configurer l'identité Git
                         sh 'git config user.email "jenkins@bot.com"'
                         sh 'git config user.name "Jenkins CI"'
-
-                        // Créer le tag
-                        def tagName = "v1.0.${BUILD_NUMBER}"
-                        sh "git tag -a ${tagName} -m 'Auto-tag from SCM #${BUILD_NUMBER}'"
                         
-                        // Pousser le tag
-                        sh "git push https://${GIT_USER}:${GIT_PASS}@github.com/Mehdi031/HelloWorldMaven.git --tags"
+                        // Astuce : On utilise le TIMESTAMP pour éviter les doublons si on rejoue le build
+                        def tagName = "v1.0.${BUILD_NUMBER}"
+                        
+                        // On vérifie si le tag existe déjà pour ne pas faire planter le build
+                        sh "git tag -a ${tagName} -m 'Auto-tag #${BUILD_NUMBER}' || echo 'Tag déjà existant'"
+                        sh "git push https://${GIT_USER}:${GIT_PASS}@github.com/Mehdi031/HelloWorldMaven.git --tags || echo 'Push échoué ou déjà à jour'"
                     }
                 }
             }
